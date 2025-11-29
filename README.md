@@ -81,13 +81,12 @@ pip3 install pygame
 
 ```
 Escapa_del_laberinto_Proyecto/
-├── P1_IGNACIO_TORRES_YOHAN_MORERA.py  # Archivo principal del juego
-├── config.json                         # Configuración guardada
-├── CODEFILES/
-│   └── CodeFiles/                      # Recursos del juego
-│       ├── *.mp3                       # Música del juego
-│       └── *.png, *.webp               # Sprites y gráficos
-└── README.md                           # Este archivo
+├── P1_IGNACIO_TORRES_YOHAN_MORERA.py   # Archivo principal del juego
+├── config.json                          # Configuración guardada
+├── CODEFILES/CodeFiles/                 # Carpeta de recursos
+│   ├── *.mp3                            # Archivos de música
+│   └── *.png, *.webp                    # Sprites y gráficos
+└── README.md                            # Este archivo
 ```
 
 ## ⚙️ Opciones del Juego
