@@ -389,6 +389,187 @@ class MapaJuego:
             for tile in fila:
                 tile.dibujar(pantalla)
 
+# --- Algoritmos de pathfinding BFS para navegación de enemigos ---
+
+def bfs_siguiente_paso(mapa, inicio, objetivo, evitar=None):
+    if evitar is None:
+        evitar = set()
+    ancho, alto = mapa.ancho, mapa.alto
+    cuadricula = mapa.cuadricula
+    sx, sy = inicio
+    gx, gy = objetivo
+    sx = max(0, min(ancho-1, sx))
+    sy = max(0, min(alto-1, sy))
+    gx = max(0, min(ancho-1, gx))
+    gy = max(0, min(alto-1, gy))
+    
+    if (sx, sy) == (gx, gy):
+        return (sx, sy)
+    
+    from collections import deque
+    cola = deque()
+    cola.append((sx, sy))
+    previo = {(sx, sy): None}
+    direcciones = [(1,0), (-1,0), (0,1), (0,-1)]
+    
+    while cola:
+        x, y = cola.popleft()
+        if (x, y) == (gx, gy):
+            break
+        for dx, dy in direcciones:
+            nx, ny = x + dx, y + dy
+            if not (0 <= nx < ancho and 0 <= ny < alto):
+                continue
+            if (nx, ny) in previo:
+                continue
+            if (nx, ny) in evitar:
+                continue
+            
+            try:
+                tile = cuadricula[ny][nx]
+                caminable = getattr(tile, 'caminable', False)
+            except Exception:
+                caminable = False
+            
+            if not caminable and not isinstance(cuadricula[ny][nx], type(cuadricula[gy][gx])):
+                continue
+            
+            previo[(nx, ny)] = (x, y)
+            cola.append((nx, ny))
+    
+    if (gx, gy) not in previo:
+        return None
+    
+    actual = (gx, gy)
+    ruta = []
+    while actual is not None:
+        ruta.append(actual)
+        actual = previo[actual]
+    ruta.reverse()
+    
+    if len(ruta) < 2:
+        return ruta[0]
+    return ruta[1]
+
+
+def bfs_ruta(mapa, inicio, objetivo, evitar=None):
+    if evitar is None:
+        evitar = set()
+    ancho, alto = mapa.ancho, mapa.alto
+    cuadricula = mapa.cuadricula
+    sx, sy = inicio
+    gx, gy = objetivo
+    sx = max(0, min(ancho-1, sx))
+    sy = max(0, min(alto-1, sy))
+    gx = max(0, min(ancho-1, gx))
+    gy = max(0, min(alto-1, gy))
+    
+    if (sx, sy) == (gx, gy):
+        return [(sx, sy)]
+    
+    from collections import deque
+    cola = deque()
+    cola.append((sx, sy))
+    previo = {(sx, sy): None}
+    direcciones = [(1,0), (-1,0), (0,1), (0,-1)]
+    
+    while cola:
+        x, y = cola.popleft()
+        if (x, y) == (gx, gy):
+            break
+        for dx, dy in direcciones:
+            nx, ny = x + dx, y + dy
+            if not (0 <= nx < ancho and 0 <= ny < alto):
+                continue
+            if (nx, ny) in previo:
+                continue
+            if (nx, ny) in evitar:
+                continue
+            
+            try:
+                caminable = getattr(cuadricula[ny][nx], 'caminable', False)
+            except Exception:
+                caminable = False
+            
+            if not caminable and not isinstance(cuadricula[ny][nx], type(cuadricula[gy][gx])):
+                continue
+            
+            previo[(nx, ny)] = (x, y)
+            cola.append((nx, ny))
+    
+    if (gx, gy) not in previo:
+        return None
+    
+    actual = (gx, gy)
+    ruta = []
+    while actual is not None:
+        ruta.append(actual)
+        actual = previo[actual]
+    ruta.reverse()
+    return ruta
+
+
+def bfs_ruta_enemigo(mapa, inicio, objetivo, evitar=None, modo="escapa"):
+    if evitar is None:
+        evitar = set()
+    ancho, alto = mapa.ancho, mapa.alto
+    cuadricula = mapa.cuadricula
+    sx, sy = inicio
+    gx, gy = objetivo
+    sx = max(0, min(ancho-1, sx))
+    sy = max(0, min(alto-1, sy))
+    gx = max(0, min(ancho-1, gx))
+    gy = max(0, min(alto-1, gy))
+    
+    if (sx, sy) == (gx, gy):
+        return [(sx, sy)]
+    
+    from collections import deque
+    cola = deque()
+    cola.append((sx, sy))
+    previo = {(sx, sy): None}
+    direcciones = [(1,0), (-1,0), (0,1), (0,-1)]
+    
+    while cola:
+        x, y = cola.popleft()
+        if (x, y) == (gx, gy):
+            break
+        for dx, dy in direcciones:
+            nx, ny = x + dx, y + dy
+            if not (0 <= nx < ancho and 0 <= ny < alto):
+                continue
+            if (nx, ny) in previo:
+                continue
+            if (nx, ny) in evitar:
+                continue
+            
+            tile = cuadricula[ny][nx]
+            bloqueado = False
+            
+            if isinstance(tile, Muro):
+                bloqueado = True
+            elif modo == "escapa" and isinstance(tile, Tunel):
+                bloqueado = True
+            elif modo == "cazador" and isinstance(tile, Lianas):
+                bloqueado = True
+            
+            if bloqueado:
+                continue
+            
+            previo[(nx, ny)] = (x, y)
+            cola.append((nx, ny))
+    
+    if (gx, gy) not in previo:
+        return None
+    
+    actual = (gx, gy)
+    ruta = []
+    while actual is not None:
+        ruta.append(actual)
+        actual = previo[actual]
+    ruta.reverse()
+    return ruta
+
 
 def menu_principal(pantalla, reloj, botones, fuentes):
     pantalla.fill(GRIS_MAS_OSCURO)
