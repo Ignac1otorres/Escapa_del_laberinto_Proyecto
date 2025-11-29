@@ -56,31 +56,338 @@ PUNTOS_CAZADOR_ESCAPE = 1000
 
 
 class Boton:
-    pass
+    def __init__(self, x, y, ancho, alto, texto, color, color_hover):
+        self.rectangulo = pygame.Rect(x, y, ancho, alto)
+        self.texto = texto
+        self.color = color
+        self.color_hover = color_hover
+        self.esta_hover = False
+    
+    def dibujar(self, pantalla, fuente):
+        color = self.color_hover if self.esta_hover else self.color
+        pygame.draw.rect(pantalla, color, self.rectangulo)
+        superficie_texto = fuente.render(self.texto, True, NEGRO)
+        rect_texto = superficie_texto.get_rect(center=self.rectangulo.center)
+        pantalla.blit(superficie_texto, rect_texto)
+    
+    def verificar_hover(self, posicion):
+        self.esta_hover = self.rectangulo.collidepoint(posicion)
+    
+    def fue_clickeado(self, evento):
+        return evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1 and self.esta_hover
+    
 class CajaTexto:
-    pass
+    def __init__(self, x, y, ancho, alto):
+        self.rectangulo = pygame.Rect(x, y, ancho, alto)
+        self.texto = ""
+        self.esta_activa = False
+    
+    def manejar_evento(self, evento):
+        if evento.type == pygame.MOUSEBUTTONDOWN:
+            self.esta_activa = self.rectangulo.collidepoint(evento.pos)
+        if evento.type == pygame.KEYDOWN and self.esta_activa:
+            if evento.key == pygame.K_BACKSPACE:
+                self.texto = self.texto[:-1]
+            elif len(self.texto) < 15:
+                self.texto += evento.unicode
+    
+    def dibujar(self, pantalla, fuente):
+        color = BLANCO if self.esta_activa else GRIS_CLARO
+        pygame.draw.rect(pantalla, color, self.rectangulo)
+        superficie_texto = fuente.render(self.texto, True, NEGRO)
+        pantalla.blit(superficie_texto, (self.rectangulo.x + 5, self.rectangulo.y + 5))
+        pygame.draw.rect(pantalla, NEGRO, self.rectangulo, 2)
 class Checkbox:
     pass
+
 class Terreno:
-    pass
+    def __init__(self, x, y):
+        self.rectangulo = pygame.Rect(x * TAMANIO_TILE, y * TAMANIO_TILE + MARGEN_SUPERIOR_UI, TAMANIO_TILE, TAMANIO_TILE)
+
 class Camino(Terreno):
-    pass
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.color = VERDE
+        self.caminable = True
+    
+    def dibujar(self, pantalla):
+        pygame.draw.rect(pantalla, self.color, self.rectangulo)
+
 class Muro(Terreno):
-    pass
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.color = GRIS
+        self.caminable = False
+    
+    def dibujar(self, pantalla):
+        pygame.draw.rect(pantalla, self.color, self.rectangulo)
+
 class Lianas(Terreno):
-    pass
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.color = MARRON
+        self.caminable = False
+    
+    def dibujar(self, pantalla):
+        pygame.draw.rect(pantalla, self.color, self.rectangulo)
+
 class Tunel(Terreno):
-    pass
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.color = GRIS_OSCURO
+        self.caminable = True
+    
+    def dibujar(self, pantalla):
+        pygame.draw.rect(pantalla, self.color, self.rectangulo)
+
 class Salida(Terreno):
-    pass
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.color = AMARILLO
+        self.caminable = True
+    
+    def dibujar(self, pantalla):
+        pygame.draw.rect(pantalla, self.color, self.rectangulo)
+
 class Jugador:
     pass
 class Enemigo:
     pass
 class Trampa:
     pass
+
+# Funciones de manejo de puntajes
+def cargar_puntajes():
+    try:
+        with open("scores.json", "r") as archivo:
+            return json.load(archivo)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"escapa": [], "cazador_1min": [], "cazador_3min": []}
+
+def guardar_puntajes(puntajes):
+    with open("scores.json", "w") as archivo:
+        json.dump(puntajes, archivo, indent=4)
+
+def agregar_puntaje(modo, nombre, puntaje):
+    puntajes = cargar_puntajes()
+    lista = puntajes.get(modo, [])
+    lista.append({"name": nombre, "score": puntaje})
+    lista.sort(key=lambda x: x["score"], reverse=True)
+    puntajes[modo] = lista[:5]
+    guardar_puntajes(puntajes)
+
+def pantalla_registro(pantalla, reloj, fuentes):
+    ancho_btn, alto_btn = 200, 50
+    ancho_entrada, alto_entrada = 300, 50
+    centro_x = ANCHO_PANTALLA // 2
+    centro_y = ALTO_PANTALLA // 2
+    caja_entrada = CajaTexto(centro_x - ancho_entrada//2, centro_y - alto_entrada//2, ancho_entrada, alto_entrada)
+    boton_continuar = Boton(centro_x - ancho_btn//2, centro_y + alto_entrada//2 + 20, ancho_btn, alto_btn, "Continuar", GRIS_CLARO, BLANCO)
+    
+    while True:
+        posicion_raton = pygame.mouse.get_pos()
+        boton_continuar.verificar_hover(posicion_raton)
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            caja_entrada.manejar_evento(evento)
+            if boton_continuar.fue_clickeado(evento) and caja_entrada.texto.strip() != "":
+                return caja_entrada.texto.strip()
+        
+        pantalla.fill(GRIS_MAS_OSCURO)
+        mensaje = fuentes['encabezado'].render("Ingresa tu Nombre:", True, BLANCO)
+        pantalla.blit(mensaje, (ANCHO_PANTALLA//2 - mensaje.get_width()//2, centro_y - 100))
+        caja_entrada.dibujar(pantalla, fuentes['entrada'])
+        boton_continuar.dibujar(pantalla, fuentes['boton'])
+        pygame.display.flip()
+        reloj.tick(60)
+
+def pantalla_fin(pantalla, reloj, fuentes, texto_resultado, texto_puntaje):
+    ancho_btn, alto_btn = 200, 50
+    boton_menu = Boton(ANCHO_PANTALLA//2 - ancho_btn//2, ALTO_PANTALLA//2 + 100, ancho_btn, alto_btn, "Menú Principal", GRIS_CLARO, BLANCO)
+    
+    while True:
+        posicion_raton = pygame.mouse.get_pos()
+        boton_menu.verificar_hover(posicion_raton)
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if boton_menu.fue_clickeado(evento):
+                return
+        
+        pantalla.fill(GRIS_MAS_OSCURO)
+        superficie_resultado = fuentes['titulo'].render(texto_resultado, True, BLANCO)
+        superficie_puntaje = fuentes['encabezado'].render(texto_puntaje, True, BLANCO)
+        pantalla.blit(superficie_resultado, (ANCHO_PANTALLA//2 - superficie_resultado.get_width()//2, ALTO_PANTALLA//2 - 100))
+        pantalla.blit(superficie_puntaje, (ANCHO_PANTALLA//2 - superficie_puntaje.get_width()//2, ALTO_PANTALLA//2))
+        boton_menu.dibujar(pantalla, fuentes['boton'])
+        pygame.display.flip()
+        reloj.tick(60)
+
 class MapaJuego:
-    pass
+    def __init__(self, ancho, alto):
+        self.ancho = ancho
+        self.alto = alto
+        self.cuadricula = []
+        self.obstaculos = []
+        self.salidas = []
+    
+    def generar_laberinto(self, modo):
+        mapa_temporal = [[MURO for _ in range(self.ancho)] for _ in range(self.alto)]
+        pila = []
+        inicio_x = random.randrange(1, self.ancho-1, 2)
+        inicio_y = random.randrange(1, self.alto-1, 2)
+        mapa_temporal[inicio_y][inicio_x] = CAMINO
+        pila.append((inicio_x, inicio_y))
+        
+        while pila:
+            x, y = pila[-1]
+            vecinos = []
+            for dx, dy in [(0,2), (0,-2), (2,0), (-2,0)]:
+                nx, ny = x + dx, y + dy
+                if 0 < nx < self.ancho and 0 < ny < self.alto and mapa_temporal[ny][nx] == MURO:
+                    vecinos.append((nx, ny))
+            if vecinos:
+                nx, ny = random.choice(vecinos)
+                mapa_temporal[ny][nx] = CAMINO
+                mapa_temporal[y + (ny-y)//2][x + (nx-x)//2] = CAMINO
+                pila.append((nx, ny))
+            else:
+                pila.pop()
+        
+        self._suavizar_muros(mapa_temporal)
+        self._agregar_caracteristicas(mapa_temporal, modo)
+        self._crear_areas_abiertas(mapa_temporal)
+        self._crear_cuadricula(mapa_temporal)
+    
+    def _agregar_caracteristicas(self, mapa_temporal, modo):
+        if modo == "escapa":
+            salida_colocada = False
+            for i in range(self.alto-2, 0, -1):
+                if mapa_temporal[i][self.ancho-2] == CAMINO:
+                    mapa_temporal[i][self.ancho-1] = SALIDA
+                    salida_colocada = True
+                    break
+            if not salida_colocada:
+                mapa_temporal[self.alto-2][self.ancho-1] = SALIDA
+        else:
+            for _ in range(4):
+                lado = random.choice(['arriba', 'abajo', 'izquierda', 'derecha'])
+                if lado == 'arriba':
+                    mapa_temporal[0][random.randint(1, self.ancho-2)] = SALIDA
+                elif lado == 'abajo':
+                    mapa_temporal[self.alto-1][random.randint(1, self.ancho-2)] = SALIDA
+                elif lado == 'izquierda':
+                    mapa_temporal[random.randint(1, self.alto-2)][0] = SALIDA
+                elif lado == 'derecha':
+                    mapa_temporal[random.randint(1, self.alto-2)][self.ancho-1] = SALIDA
+        
+        for y in range(1, self.alto-1):
+            for x in range(1, self.ancho-1):
+                if mapa_temporal[y][x] == CAMINO and random.random() < 0.015:
+                    mapa_temporal[y][x] = LIANAS
+                elif mapa_temporal[y][x] == CAMINO and random.random() < 0.02:
+                    mapa_temporal[y][x] = TUNEL
+
+    def _suavizar_muros(self, mapa_temporal):
+        ancho, alto = self.ancho, self.alto
+        intentos = max((ancho * alto) // 6, 20)
+        
+        for _ in range(intentos):
+            x = random.randint(1, ancho-2)
+            y = random.randint(1, alto-2)
+            if mapa_temporal[y][x] != MURO:
+                continue
+            
+            caminos_adyacentes = 0
+            for dx, dy in ((1,0), (-1,0), (0,1), (0,-1)):
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < ancho and 0 <= ny < alto and mapa_temporal[ny][nx] == CAMINO:
+                    caminos_adyacentes += 1
+            
+            if caminos_adyacentes >= 2:
+                probabilidad = 0.5
+            elif caminos_adyacentes == 1:
+                probabilidad = 0.25
+            else:
+                probabilidad = 0.03
+            
+            if random.random() < probabilidad:
+                mapa_temporal[y][x] = CAMINO
+        
+        caminatas_extra = max((ancho * alto) // 120, 3)
+        for _ in range(caminatas_extra):
+            sx = random.randint(1, ancho-2)
+            sy = random.randint(1, alto-2)
+            if mapa_temporal[sy][sx] != CAMINO:
+                continue
+            
+            longitud = random.randint(3, 8)
+            cx, cy = sx, sy
+            for _ in range(longitud):
+                dx, dy = random.choice(((1,0), (-1,0), (0,1), (0,-1)))
+                nx, ny = cx + dx, cy + dy
+                if not (1 <= nx < ancho-1 and 1 <= ny < alto-1):
+                    break
+                if mapa_temporal[ny][nx] == MURO and random.random() < 0.6:
+                    mapa_temporal[ny][nx] = CAMINO
+                cx, cy = nx, ny
+    
+    def _crear_areas_abiertas(self, mapa_temporal):
+        ancho, alto = self.ancho, self.alto
+        numero_islas = max(3, (ancho * alto) // 80)
+        
+        for _ in range(numero_islas):
+            centro_x = random.randint(2, ancho - 3)
+            centro_y = random.randint(2, alto - 3)
+            ancho_isla = random.randint(3, 5)
+            alto_isla = random.randint(2, 4)
+            
+            for dy in range(alto_isla):
+                for dx in range(ancho_isla):
+                    nx = centro_x + dx - ancho_isla // 2
+                    ny = centro_y + dy - alto_isla // 2
+                    if 1 <= nx < ancho - 1 and 1 <= ny < alto - 1:
+                        if mapa_temporal[ny][nx] in (MURO, LIANAS, TUNEL):
+                            mapa_temporal[ny][nx] = CAMINO
+    
+    def _crear_cuadricula(self, mapa_temporal):
+        self.cuadricula = []
+        self.obstaculos = []
+        self.salidas = []
+        
+        for y, fila in enumerate(mapa_temporal):
+            fila_cuadricula = []
+            for x, tipo in enumerate(fila):
+                tile = {
+                    MURO: Muro,
+                    LIANAS: Lianas,
+                    TUNEL: Tunel,
+                    SALIDA: Salida,
+                    CAMINO: Camino
+                }[tipo](x, y)
+                
+                if isinstance(tile, Salida):
+                    self.salidas.append(tile)
+                if isinstance(tile, (Muro, Lianas, Tunel)):
+                    self.obstaculos.append(tile)
+                
+                fila_cuadricula.append(tile)
+            self.cuadricula.append(fila_cuadricula)
+    
+    def obtener_posicion_valida(self):
+        while True:
+            x = random.randint(1, self.ancho-2)
+            y = random.randint(1, self.alto-2)
+            if isinstance(self.cuadricula[y][x], Camino):
+                return (x * TAMANIO_TILE + 5, y * TAMANIO_TILE + 5 + MARGEN_SUPERIOR_UI)
+    
+    def dibujar(self, pantalla):
+        for fila in self.cuadricula:
+            for tile in fila:
+                tile.dibujar(pantalla)
 
 
 def menu_principal(pantalla, reloj, botones, fuentes):
@@ -197,7 +504,6 @@ def pantalla_puntajes(pantalla, reloj, boton_volver, fuentes):
 
 def principal():
     pygame.init()
-    global IMAGEN_JUGADOR, IMAGEN_ENEMIGO, IMAGEN_TRAMPA, IMAGEN_LIANAS, IMAGEN_TUNEL, IMAGEN_SALIDA
     global TAMANIO_TILE, ANCHO_PANTALLA, ALTO_PANTALLA
     
     ANCHO_PANTALLA, ALTO_PANTALLA = ANCHO_MENU, ALTO_MENU
